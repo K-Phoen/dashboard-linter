@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 	"github.com/prometheus/prometheus/promql/parser"
 )
 
@@ -11,9 +13,15 @@ func NewTargetCounterAggRule() *TargetRuleFunc {
 	return &TargetRuleFunc{
 		name:        "target-counter-agg-rule",
 		description: "Checks that any counter metric (ending in _total) is aggregated with rate, irate, or increase.",
-		fn: func(d Dashboard, p Panel, t Target) TargetRuleResults {
+		fn: func(d dashboard.Dashboard, p dashboard.PanelOrRowPanel, t Target) TargetRuleResults {
 			r := TargetRuleResults{}
-			expr, err := parsePromQL(t.Expr, d.Templating.List)
+
+			promQuery, ok := t.Original.(prometheus.Dataquery)
+			if !ok {
+				return r
+			}
+
+			expr, err := parsePromQL(promQuery.Expr, d.Templating.List)
 			if err != nil {
 				// Invalid PromQL is another rule
 				return r

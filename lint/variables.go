@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 )
 
 // https://grafana.com/docs/grafana/latest/variables/variable-types/global-variables/
@@ -30,6 +32,35 @@ var globalVariables = map[string]interface{}{
 	"timeFilter":      "time > now() - 7d",
 	"__timeFilter":    "time > now() - 7d",
 	"__auto":          "12345ms",
+}
+
+func getTemplateByType(d dashboard.Dashboard, t string) []dashboard.VariableModel {
+	var retval []dashboard.VariableModel
+	for _, templ := range d.Templating.List {
+		if strings.EqualFold(string(templ.Type), t) {
+			retval = append(retval, templ)
+		}
+	}
+	return retval
+}
+
+func getTemplate(d dashboard.Dashboard, name string) *dashboard.VariableModel {
+	for _, template := range d.Templating.List {
+		if template.Name == name {
+			return &template
+		}
+	}
+	return nil
+}
+
+func getTemplateDatasource(d dashboard.Dashboard) *dashboard.VariableModel {
+	for _, template := range d.Templating.List {
+		if template.Type != "datasource" {
+			continue
+		}
+		return &template
+	}
+	return nil
 }
 
 func stringValue(name string, value interface{}, kind, format string) (string, error) {
@@ -103,8 +134,8 @@ func stringValue(name string, value interface{}, kind, format string) (string, e
 	}
 }
 
-func removeVariableByName(name string, variables []Template) []Template {
-	vars := make([]Template, 0, len(variables))
+func removeVariableByName(name string, variables []dashboard.VariableModel) []dashboard.VariableModel {
+	vars := make([]dashboard.VariableModel, 0, len(variables))
 	for _, v := range variables {
 		if v.Name == name {
 			continue
@@ -114,7 +145,7 @@ func removeVariableByName(name string, variables []Template) []Template {
 	return vars
 }
 
-func variableSampleValue(s string, variables []Template) (string, error) {
+func variableSampleValue(s string, variables []dashboard.VariableModel) (string, error) {
 	var name, kind, format string
 	parts := strings.Split(s, ":")
 	switch len(parts) {
@@ -146,23 +177,16 @@ func variableSampleValue(s string, variables []Template) (string, error) {
 		if v.Name != name {
 			continue
 		}
+
 		// if it has a current value, use it
-		c, err := v.Current.Get()
-		if err != nil {
-			return "", err
-		}
-		if c.Value != "" {
+		if v.Current != nil && v.Current.Value.String != nil && *v.Current.Value.String != "" {
 			// Recursively expand, without the current variable to avoid infinite recursion
-			return expandVariables(c.Value, removeVariableByName(name, variables))
+			return expandVariables(*v.Current.Value.String, removeVariableByName(name, variables))
 		}
 		// If it has options, use the first option
 		if len(v.Options) > 0 {
 			// Recursively expand, without the current variable to avoid infinite recursion
-			o, err := v.Options[0].Get()
-			if err != nil {
-				return "", err
-			}
-			return expandVariables(o.Value, removeVariableByName(name, variables))
+			return expandVariables(*v.Options[0].Value.String, removeVariableByName(name, variables))
 		}
 	}
 	// Assume variable type is a string
@@ -177,7 +201,7 @@ var variableRegexp = regexp.MustCompile(
 	}, "|"),
 )
 
-func expandVariables(expr string, variables []Template) (string, error) {
+func expandVariables(expr string, variables []dashboard.VariableModel) (string, error) {
 	parts := strings.Split(expr, "\"")
 	for i, part := range parts {
 		if i%2 == 1 {
@@ -215,7 +239,7 @@ func expandVariables(expr string, variables []Template) (string, error) {
 	return strings.Join(parts, "\""), nil
 }
 
-func expandLogQLVariables(expr string, variables []Template) (string, error) {
+func expandLogQLVariables(expr string, variables []dashboard.VariableModel) (string, error) {
 	lines := strings.Split(expr, "\n")
 	for i, line := range lines {
 		parts := strings.Split(line, "\"")

@@ -3,6 +3,10 @@ package lint
 import (
 	"fmt"
 	"testing"
+
+	cogvariants "github.com/grafana/grafana-foundation-sdk/go/cog/variants"
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 )
 
 func testTargetRequiredMatcherRule(t *testing.T, matcher string) {
@@ -20,19 +24,19 @@ func testTargetRequiredMatcherRule(t *testing.T, matcher string) {
 
 	for _, tc := range []struct {
 		result Result
-		target Target
+		target cogvariants.Dataquery
 	}{
 		// Happy path
 		{
 			result: ResultSuccess,
-			target: Target{
+			target: prometheus.Dataquery{
 				Expr: fmt.Sprintf(`sum(rate(foo{%s=~"$%s"}[5m]))`, matcher, matcher),
 			},
 		},
 		// Also happy when the promql is invalid
 		{
 			result: ResultSuccess,
-			target: Target{
+			target: prometheus.Dataquery{
 				Expr: `foo(bar.baz))`,
 			},
 		},
@@ -42,7 +46,7 @@ func testTargetRequiredMatcherRule(t *testing.T, matcher string) {
 				Severity: Error,
 				Message:  fmt.Sprintf("Dashboard 'dashboard', panel 'panel', target idx '0' invalid PromQL query 'sum(rate(foo[5m]))': %s selector not found", matcher),
 			},
-			target: Target{
+			target: prometheus.Dataquery{
 				Expr: `sum(rate(foo[5m]))`,
 			},
 		},
@@ -52,7 +56,7 @@ func testTargetRequiredMatcherRule(t *testing.T, matcher string) {
 				Severity: Error,
 				Message:  fmt.Sprintf("Dashboard 'dashboard', panel 'panel', target idx '0' invalid PromQL query 'sum(rate(foo{%s=\"$%s\"}[5m]))': %s selector is =, not =~", matcher, matcher, matcher),
 			},
-			target: Target{
+			target: prometheus.Dataquery{
 				Expr: fmt.Sprintf(`sum(rate(foo{%s="$%s"}[5m]))`, matcher, matcher),
 			},
 		},
@@ -62,33 +66,33 @@ func testTargetRequiredMatcherRule(t *testing.T, matcher string) {
 				Severity: Error,
 				Message:  fmt.Sprintf("Dashboard 'dashboard', panel 'panel', target idx '0' invalid PromQL query 'sum(rate(foo{%s=~\"$foo\"}[5m]))': %s selector is $foo, not $%s", matcher, matcher, matcher),
 			},
-			target: Target{
+			target: prometheus.Dataquery{
 				Expr: fmt.Sprintf(`sum(rate(foo{%s=~"$foo"}[5m]))`, matcher),
 			},
 		},
 	} {
-		dashboard := Dashboard{
-			Title: "dashboard",
-			Templating: struct {
-				List []Template `json:"list"`
-			}{
-				List: []Template{
+		dash := dashboard.Dashboard{
+			Title: toPtr("dashboard"),
+			Templating: dashboard.DashboardDashboardTemplating{
+				List: []dashboard.VariableModel{
 					{
 						Type:  "datasource",
-						Query: "prometheus",
+						Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 					},
 				},
 			},
-			Panels: []Panel{
+			Panels: []dashboard.PanelOrRowPanel{
 				{
-					Title:   "panel",
-					Type:    "singlestat",
-					Targets: []Target{tc.target},
+					Panel: &dashboard.Panel{
+						Title:   toPtr("panel"),
+						Type:    "singlestat",
+						Targets: []cogvariants.Dataquery{tc.target},
+					},
 				},
 			},
 		}
 
-		testRule(t, linter, dashboard, tc.result)
+		testRule(t, linter, dash, tc.result)
 	}
 }
 

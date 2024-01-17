@@ -2,6 +2,8 @@ package lint
 
 import (
 	"testing"
+
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 )
 
 func TestTemplateDatasource(t *testing.T) {
@@ -10,7 +12,7 @@ func TestTemplateDatasource(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		result    []Result
-		dashboard Dashboard
+		dashboard dashboard.Dashboard
 	}{
 		// 0 Data Sources
 		{
@@ -19,8 +21,8 @@ func TestTemplateDatasource(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'test' does not have a templated data source",
 			}},
-			dashboard: Dashboard{
-				Title: "test",
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
 			},
 		},
 		// 1 Data Source
@@ -36,12 +38,10 @@ func TestTemplateDatasource(t *testing.T) {
 					Message:  "Dashboard 'test' templated data source variable labeled '', should be labeled ' data source', or 'Data source'",
 				},
 			},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type: "datasource",
 							Name: "foo",
@@ -58,17 +58,15 @@ func TestTemplateDatasource(t *testing.T) {
 					Message:  "Dashboard 'test' templated data source variable labeled 'bar', should be labeled 'Bar data source', or 'Data source'",
 				},
 			},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "datasource",
-							Query: "bar",
-							Label: "bar",
+							Label: toPtr("bar"),
+							Query: &dashboard.StringOrMap{String: toPtr("bar")},
 						},
 					},
 				},
@@ -77,17 +75,15 @@ func TestTemplateDatasource(t *testing.T) {
 		{
 			name:   "OK - Data source ",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "datasource",
-							Label: "Data source",
-							Query: "prometheus",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 					},
 				},
@@ -96,17 +92,15 @@ func TestTemplateDatasource(t *testing.T) {
 		{
 			name:   "OK - Prometheus data source",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "datasource",
-							Label: "Prometheus data source",
-							Query: "prometheus",
+							Label: toPtr("Prometheus data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 					},
 				},
@@ -115,17 +109,15 @@ func TestTemplateDatasource(t *testing.T) {
 		{
 			name:   "OK - name: prometheus_datasource",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "prometheus_datasource",
-							Label: "Data source",
-							Query: "prometheus",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 					},
 				},
@@ -134,17 +126,15 @@ func TestTemplateDatasource(t *testing.T) {
 		{
 			name:   "OK - name: prometheus_datasource, label: Prometheus data source",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "prometheus_datasource",
-							Label: "Prometheus data source",
-							Query: "prometheus",
+							Label: toPtr("Prometheus data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 					},
 				},
@@ -153,17 +143,15 @@ func TestTemplateDatasource(t *testing.T) {
 		{
 			name:   "OK - name: loki_datasource, query: loki",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "loki_datasource",
-							Label: "Data source",
-							Query: "loki",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("loki")},
 						},
 					},
 				},
@@ -172,17 +160,15 @@ func TestTemplateDatasource(t *testing.T) {
 		{
 			name:   "OK - name: datasource, query: loki",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "datasource",
-							Label: "Data source",
-							Query: "loki",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("loki")},
 						},
 					},
 				},
@@ -209,29 +195,27 @@ func TestTemplateDatasource(t *testing.T) {
 					Message:  "Dashboard 'test' templated data source variable labeled 'Data source', should be labeled 'Influx data source'",
 				},
 			},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "datasource",
-							Label: "Data source",
-							Query: "prometheus",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Type:  "datasource",
 							Name:  "loki_datasource",
-							Label: "Data source",
-							Query: "loki",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("loki")},
 						},
 						{
 							Type:  "datasource",
 							Name:  "influx_datasource",
-							Label: "Data source",
-							Query: "influx",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("influx")},
 						},
 					},
 				},
@@ -253,29 +237,27 @@ func TestTemplateDatasource(t *testing.T) {
 					Message:  "Dashboard 'test' templated data source variable labeled 'Data source', should be labeled 'Influx data source'",
 				},
 			},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "prometheus_datasource",
-							Label: "Data source",
-							Query: "prometheus",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Type:  "datasource",
 							Name:  "loki_datasource",
-							Label: "Data source",
-							Query: "loki",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("loki")},
 						},
 						{
 							Type:  "datasource",
 							Name:  "influx_datasource",
-							Label: "Data source",
-							Query: "influx",
+							Label: toPtr("Data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("influx")},
 						},
 					},
 				},
@@ -284,29 +266,27 @@ func TestTemplateDatasource(t *testing.T) {
 		{
 			name:   "3 Data Sources - 2",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
 							Name:  "prometheus_datasource",
-							Label: "Prometheus data source",
-							Query: "prometheus",
+							Label: toPtr("Prometheus data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Type:  "datasource",
 							Name:  "loki_datasource",
-							Label: "Loki data source",
-							Query: "loki",
+							Label: toPtr("Loki data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("loki")},
 						},
 						{
 							Type:  "datasource",
 							Name:  "influx_datasource",
-							Label: "Influx data source",
-							Query: "influx",
+							Label: toPtr("Influx data source"),
+							Query: &dashboard.StringOrMap{String: toPtr("influx")},
 						},
 					},
 				},

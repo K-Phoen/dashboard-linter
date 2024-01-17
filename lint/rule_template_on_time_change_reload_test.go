@@ -4,40 +4,39 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTemplateOnTimeRangeReloadRule(t *testing.T) {
 	linter := NewTemplateOnTimeRangeReloadRule()
 
-	good := []Template{
+	good := []dashboard.VariableModel{
 		{
 			Type:  "datasource",
-			Query: "prometheus",
+			Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 		},
 		{
 			Name:       "namespaces",
-			Datasource: "$datasource",
-			Query:      "label_values(up{job=~\"$job\"}, namespace)",
+			Datasource: &dashboard.DataSourceRef{Uid: toPtr("$datasource")},
+			Query:      &dashboard.StringOrMap{String: toPtr("label_values(up{job=~\"$job\"}, namespace)")},
 			Type:       "query",
-			Label:      "job",
-			Refresh:    2,
+			Label:      toPtr("job"),
+			Refresh:    toPtr(dashboard.VariableRefreshOnTimeRangeChanged),
 		},
 	}
 	for _, tc := range []struct {
 		name      string
 		result    Result
-		dashboard Dashboard
-		fixed     *Dashboard
+		dashboard dashboard.Dashboard
+		fixed     *dashboard.Dashboard
 	}{
 		{
 			name:   "OK",
 			result: ResultSuccess,
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
 					List: good,
 				},
 			},
@@ -48,32 +47,28 @@ func TestTemplateOnTimeRangeReloadRule(t *testing.T) {
 				Severity: Fixed,
 				Message:  `Dashboard 'test' templated datasource variable named 'namespaces', should be set to be refreshed 'On Time Range Change (value 2)', is currently '1'`,
 			},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: ([]Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Name:       "namespaces",
-							Datasource: "$datasource",
-							Query:      "label_values(up{job=~\"$job\"}, namespace)",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("$datasource")},
+							Query:      &dashboard.StringOrMap{String: toPtr("label_values(up{job=~\"$job\"}, namespace)")},
 							Type:       "query",
-							Label:      "job",
-							Refresh:    1,
+							Label:      toPtr("job"),
+							Refresh:    toPtr(dashboard.VariableRefreshOnDashboardLoad),
 						},
-					}),
+					},
 				},
 			},
-			fixed: &Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
+			fixed: &dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
 					List: good,
 				},
 			},
@@ -84,25 +79,23 @@ func TestTemplateOnTimeRangeReloadRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'test' templated datasource variable named 'namespaces', should be set to be refreshed 'On Time Range Change (value 2)', is currently '1'`,
 			},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: ([]Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Name:       "namespaces",
-							Datasource: "$datasource",
-							Query:      "label_values(up{job=~\"$job\"}, namespace)",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("$datasource")},
+							Query:      &dashboard.StringOrMap{String: toPtr("label_values(up{job=~\"$job\"}, namespace)")},
 							Type:       "query",
-							Label:      "job",
-							Refresh:    1,
+							Label:      toPtr("job"),
+							Refresh:    toPtr(dashboard.VariableRefreshOnDashboardLoad),
 						},
-					}),
+					},
 				},
 			},
 		},

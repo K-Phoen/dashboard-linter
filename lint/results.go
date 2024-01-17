@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 )
 
 var ResultSuccess = Result{
@@ -18,7 +20,7 @@ type Result struct {
 
 type FixableResult struct {
 	Result
-	Fix func(*Dashboard) // if nil, it cannot be fixed
+	Fix func(*dashboard.Dashboard) // if nil, it cannot be fixed
 }
 
 type RuleResults struct {
@@ -27,35 +29,57 @@ type RuleResults struct {
 
 type TargetResult struct {
 	Result
-	Fix func(Dashboard, Panel, *Target)
+	Fix func(dashboard.Dashboard, dashboard.PanelOrRowPanel, Target)
 }
 
 type TargetRuleResults struct {
 	Results []TargetResult
 }
 
-func (r *TargetRuleResults) AddError(d Dashboard, p Panel, t Target, message string) {
+func (r *TargetRuleResults) AddError(d dashboard.Dashboard, p dashboard.PanelOrRowPanel, t Target, message string) {
+	title := ""
+	if p.RowPanel != nil && p.RowPanel.Title != nil {
+		title = *p.RowPanel.Title
+	} else if p.Panel != nil && p.Panel.Title != nil {
+		title = *p.Panel.Title
+	}
 	r.Results = append(r.Results, TargetResult{
 		Result: Result{
 			Severity: Error,
-			Message:  fmt.Sprintf("Dashboard '%s', panel '%s', target idx '%d' %s", d.Title, p.Title, t.Idx, message),
+			Message:  fmt.Sprintf("Dashboard '%s', panel '%s', target idx '%d' %s", *d.Title, title, t.Idx, message),
 		},
 	})
 }
 
 type PanelResult struct {
 	Result
-	Fix func(Dashboard, *Panel)
+	Fix func(dashboard.Dashboard, *dashboard.PanelOrRowPanel)
 }
 
 type PanelRuleResults struct {
 	Results []PanelResult
 }
 
-func (r *PanelRuleResults) AddError(d Dashboard, p Panel, message string) {
-	msg := fmt.Sprintf("Dashboard '%s', panel '%s' %s", d.Title, p.Title, message)
-	if p.Title == "" {
-		msg = fmt.Sprintf("Dashboard '%s', panel with id '%d' %s", d.Title, p.Id, message)
+func (r *PanelRuleResults) AddError(d dashboard.Dashboard, p dashboard.PanelOrRowPanel, message string) {
+	var id uint32
+	title := ""
+	if p.RowPanel != nil {
+		id = p.RowPanel.Id
+		if p.RowPanel.Title != nil {
+			title = *p.RowPanel.Title
+		}
+	} else if p.Panel != nil {
+		if p.Panel.Id != nil {
+			id = *p.Panel.Id
+		}
+		if p.Panel.Title != nil {
+			title = *p.Panel.Title
+		}
+	}
+
+	msg := fmt.Sprintf("Dashboard '%s', panel '%s' %s", *d.Title, title, message)
+	if title == "" {
+		msg = fmt.Sprintf("Dashboard '%s', panel with id '%d' %s", *d.Title, id, message)
 	}
 
 	r.Results = append(r.Results, PanelResult{
@@ -68,18 +92,18 @@ func (r *PanelRuleResults) AddError(d Dashboard, p Panel, message string) {
 
 type DashboardResult struct {
 	Result
-	Fix func(*Dashboard)
+	Fix func(*dashboard.Dashboard)
 }
 
 type DashboardRuleResults struct {
 	Results []DashboardResult
 }
 
-func dashboardMessage(d Dashboard, message string) string {
-	return fmt.Sprintf("Dashboard '%s' %s", d.Title, message)
+func dashboardMessage(d dashboard.Dashboard, message string) string {
+	return fmt.Sprintf("Dashboard '%s' %s", *d.Title, message)
 }
 
-func (r *DashboardRuleResults) AddError(d Dashboard, message string) {
+func (r *DashboardRuleResults) AddError(d dashboard.Dashboard, message string) {
 	r.Results = append(r.Results, DashboardResult{
 		Result: Result{
 			Severity: Error,
@@ -88,7 +112,7 @@ func (r *DashboardRuleResults) AddError(d Dashboard, message string) {
 	})
 }
 
-func (r *DashboardRuleResults) AddFixableError(d Dashboard, message string, fix func(*Dashboard)) {
+func (r *DashboardRuleResults) AddFixableError(d dashboard.Dashboard, message string, fix func(*dashboard.Dashboard)) {
 	r.Results = append(r.Results, DashboardResult{
 		Result: Result{
 			Severity: Error,
@@ -98,7 +122,7 @@ func (r *DashboardRuleResults) AddFixableError(d Dashboard, message string, fix 
 	})
 }
 
-func (r *DashboardRuleResults) AddWarning(d Dashboard, message string) {
+func (r *DashboardRuleResults) AddWarning(d dashboard.Dashboard, message string) {
 	r.Results = append(r.Results, DashboardResult{
 		Result: Result{
 			Severity: Warning,
@@ -111,8 +135,8 @@ func (r *DashboardRuleResults) AddWarning(d Dashboard, message string) {
 type ResultContext struct {
 	Result    RuleResults
 	Rule      Rule
-	Dashboard *Dashboard
-	Panel     *Panel
+	Dashboard *dashboard.Dashboard
+	Panel     *dashboard.PanelOrRowPanel
 	Target    *Target
 }
 
@@ -181,7 +205,11 @@ func (rs *ResultSet) ByRule() map[string][]ResultContext {
 	}
 	for _, rule := range ret {
 		sort.SliceStable(rule, func(i, j int) bool {
-			return rule[i].Dashboard.Title < rule[j].Dashboard.Title
+			if rule[i].Dashboard.Title == nil || rule[j].Dashboard.Title == nil {
+				return false
+			}
+
+			return *rule[i].Dashboard.Title < *rule[j].Dashboard.Title
 		})
 	}
 	return ret
@@ -208,7 +236,7 @@ func (rs *ResultSet) ReportByRule() {
 	}
 }
 
-func (rs *ResultSet) AutoFix(d *Dashboard) int {
+func (rs *ResultSet) AutoFix(d *dashboard.Dashboard) int {
 	changes := 0
 	for _, r := range rs.results {
 		for i, fixableResult := range r.Result.Results {

@@ -1,6 +1,10 @@
 package lint
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+)
 
 func NewPanelUnitsRule() *PanelRuleFunc {
 	validUnits := []string{
@@ -66,14 +70,20 @@ func NewPanelUnitsRule() *PanelRuleFunc {
 	return &PanelRuleFunc{
 		name:        "panel-units-rule",
 		description: "Checks that each panel uses has valid units defined.",
-		fn: func(d Dashboard, p Panel) PanelRuleResults {
+		fn: func(d dashboard.Dashboard, p dashboard.PanelOrRowPanel) PanelRuleResults {
 			r := PanelRuleResults{}
-			switch p.Type {
+
+			// The panel is a row
+			if p.RowPanel != nil {
+				return r
+			}
+
+			switch p.Panel.Type {
 			case panelTypeStat, panelTypeSingleStat, panelTypeGraph, panelTypeTimeTable, panelTypeTimeSeries, panelTypeGauge:
-				configuredUnit := getConfiguredUnit(p)
+				configuredUnit := getConfiguredUnit(p.Panel)
 				if configuredUnit != "" {
 					for _, u := range validUnits {
-						if u == p.FieldConfig.Defaults.Unit {
+						if u == configuredUnit {
 							return r
 						}
 					}
@@ -85,20 +95,20 @@ func NewPanelUnitsRule() *PanelRuleFunc {
 	}
 }
 
-func getConfiguredUnit(p Panel) string {
+func getConfiguredUnit(p *dashboard.Panel) string {
 	configuredUnit := ""
 	// First check if an override with unit exists - if no override then check if standard unit is present and valid
 	if p.FieldConfig != nil && len(p.FieldConfig.Overrides) > 0 {
 		for _, p := range p.FieldConfig.Overrides {
-			for _, o := range p.OverrideProperties {
+			for _, o := range p.Properties {
 				if o.Id == "unit" {
-					configuredUnit = o.Value
+					configuredUnit = o.Value.(string)
 				}
 			}
 		}
 	}
-	if configuredUnit == "" && p.FieldConfig != nil && len(p.FieldConfig.Defaults.Unit) > 0 {
-		configuredUnit = p.FieldConfig.Defaults.Unit
+	if configuredUnit == "" && p.FieldConfig != nil && p.FieldConfig.Defaults.Unit != nil && len(*p.FieldConfig.Defaults.Unit) > 0 {
+		configuredUnit = *p.FieldConfig.Defaults.Unit
 	}
 	return configuredUnit
 }

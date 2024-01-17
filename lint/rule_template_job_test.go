@@ -2,6 +2,8 @@ package lint
 
 import (
 	"testing"
+
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 )
 
 func TestJobTemplate(t *testing.T) {
@@ -10,13 +12,13 @@ func TestJobTemplate(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		result    []Result
-		dashboard Dashboard
+		dashboard dashboard.Dashboard
 	}{
 		{
 			name:   "Non-promtheus dashboards shouldn't fail.",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
 			},
 		},
 		{
@@ -25,15 +27,13 @@ func TestJobTemplate(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'test' is missing the job template",
 			}},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 					},
 				},
@@ -47,19 +47,17 @@ func TestJobTemplate(t *testing.T) {
 				{Severity: Warning, Message: "Dashboard 'test' job template should be a labeled 'Job', is currently ''"},
 				{Severity: Error, Message: "Dashboard 'test' job template should be a multi select"},
 				{Severity: Error, Message: "Dashboard 'test' job template allValue should be '.+', is currently ''"}},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Name:       "job",
-							Datasource: "foo",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
 						},
 					},
 				},
@@ -72,19 +70,17 @@ func TestJobTemplate(t *testing.T) {
 				{Severity: Warning, Message: "Dashboard 'test' job template should be a labeled 'Job', is currently ''"},
 				{Severity: Error, Message: "Dashboard 'test' job template should be a multi select"},
 				{Severity: Error, Message: "Dashboard 'test' job template allValue should be '.+', is currently ''"}},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Name:       "job",
-							Datasource: "$datasource",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("$datasource")},
 							Type:       "bar",
 						},
 					},
@@ -97,21 +93,19 @@ func TestJobTemplate(t *testing.T) {
 				{Severity: Warning, Message: "Dashboard 'test' job template should be a labeled 'Job', is currently 'bar'"},
 				{Severity: Error, Message: "Dashboard 'test' job template should be a multi select"},
 				{Severity: Error, Message: "Dashboard 'test' job template allValue should be '.+', is currently ''"}},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Name:       "job",
-							Datasource: "$datasource",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("$datasource")},
 							Type:       "query",
-							Label:      "bar",
+							Label:      toPtr("bar"),
 						},
 					},
 				},
@@ -120,31 +114,29 @@ func TestJobTemplate(t *testing.T) {
 		{
 			name:   "OK",
 			result: []Result{ResultSuccess},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Name:       "job",
-							Datasource: "$datasource",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("$datasource")},
 							Type:       "query",
-							Label:      "Job",
-							Multi:      true,
-							AllValue:   ".+",
+							Label:      toPtr("Job"),
+							Multi:      toPtr(true),
+							AllValue:   toPtr(".+"),
 						},
 						{
 							Name:       "instance",
-							Datasource: "${datasource}",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("${datasource}")},
 							Type:       "query",
-							Label:      "Instance",
-							Multi:      true,
-							AllValue:   ".+",
+							Label:      toPtr("Instance"),
+							Multi:      toPtr(true),
+							AllValue:   toPtr(".+"),
 						},
 					},
 				},

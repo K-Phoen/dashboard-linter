@@ -2,6 +2,11 @@ package lint
 
 import (
 	"testing"
+
+	"github.com/grafana/grafana-foundation-sdk/go/cog/variants"
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+	"github.com/grafana/grafana-foundation-sdk/go/loki"
+	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 )
 
 func TestTargetLogQLRule(t *testing.T) {
@@ -9,16 +14,16 @@ func TestTargetLogQLRule(t *testing.T) {
 
 	for _, tc := range []struct {
 		result Result
-		panel  Panel
+		panel  dashboard.Panel
 	}{
 		// Don't fail non-Loki panels.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title:      "panel",
-				Datasource: "prometheus",
-				Targets: []Target{
-					{
+			panel: dashboard.Panel{
+				Title:      toPtr("panel"),
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo"), Type: toPtr("prometheus")},
+				Targets: []variants.Dataquery{
+					prometheus.Dataquery{
 						Expr: `sum(rate(foo[5m]))`,
 					},
 				},
@@ -27,11 +32,11 @@ func TestTargetLogQLRule(t *testing.T) {
 		// Valid LogQL query
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum(rate({job="mysql"}[5m]))`,
 					},
 				},
@@ -43,11 +48,11 @@ func TestTargetLogQLRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' invalid LogQL query 'sum(rate({job="mysql"[5m]))': parse error at line 0, col 22: syntax error: unexpected RANGE, expecting } or ,`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum(rate({job="mysql"[5m]))`,
 					},
 				},
@@ -56,11 +61,11 @@ func TestTargetLogQLRule(t *testing.T) {
 		// Valid LogQL query with $__auto
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum(rate({job="mysql"}[$__auto]))`,
 					},
 				},
@@ -69,11 +74,11 @@ func TestTargetLogQLRule(t *testing.T) {
 		// Valid complex LogQL query
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum by (host) (rate({job="mysql"} |= "error" != "timeout" | json | duration > 10s [5m]))`,
 					},
 				},
@@ -85,11 +90,11 @@ func TestTargetLogQLRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' invalid LogQL query 'sum by (host) (rate({job="mysql"} |= "error" != "timeout" | json | duration > 10s [5m])))': parse error at line 1, col 89: syntax error: unexpected )`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum by (host) (rate({job="mysql"} |= "error" != "timeout" | json | duration > 10s [5m])))`,
 					},
 				},
@@ -98,11 +103,11 @@ func TestTargetLogQLRule(t *testing.T) {
 		// LogQL query with line_format
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `{job="mysql"} | json | line_format "{{.timestamp}} {{.message}}"`,
 					},
 				},
@@ -111,31 +116,29 @@ func TestTargetLogQLRule(t *testing.T) {
 		// LogQL query with unwrap
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum(rate({job="mysql"} | unwrap duration [5m]))`,
 					},
 				},
 			},
 		},
 	} {
-		dashboard := Dashboard{
-			Title: "dashboard",
-			Templating: struct {
-				List []Template `json:"list"`
-			}{
-				List: []Template{
+		dash := dashboard.Dashboard{
+			Title: toPtr("dashboard"),
+			Templating: dashboard.DashboardDashboardTemplating{
+				List: []dashboard.VariableModel{
 					{
 						Type:  "datasource",
-						Query: "loki",
+						Query: &dashboard.StringOrMap{String: toPtr("loki")},
 					},
 				},
 			},
-			Panels: []Panel{tc.panel},
+			Panels: []dashboard.PanelOrRowPanel{{Panel: &tc.panel}},
 		}
-		testRule(t, linter, dashboard, tc.result)
+		testRule(t, linter, dash, tc.result)
 	}
 }

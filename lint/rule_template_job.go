@@ -3,6 +3,7 @@ package lint
 import (
 	"fmt"
 
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -11,11 +12,11 @@ func NewTemplateJobRule() *DashboardRuleFunc {
 	return &DashboardRuleFunc{
 		name:        "template-job-rule",
 		description: "Checks that the dashboard has a templated job.",
-		fn: func(d Dashboard) DashboardRuleResults {
+		fn: func(d dashboard.Dashboard) DashboardRuleResults {
 			r := DashboardRuleResults{}
 
 			template := getTemplateDatasource(d)
-			if template == nil || template.Query != Prometheus {
+			if template == nil || *template.Query.String != Prometheus {
 				return r
 			}
 
@@ -25,7 +26,7 @@ func NewTemplateJobRule() *DashboardRuleFunc {
 	}
 }
 
-func checkTemplate(d Dashboard, name string, r *DashboardRuleResults) {
+func checkTemplate(d dashboard.Dashboard, name string, r *DashboardRuleResults) {
 	t := getTemplate(d, name)
 	if t == nil {
 		r.AddError(d, fmt.Sprintf("is missing the %s template", name))
@@ -34,14 +35,13 @@ func checkTemplate(d Dashboard, name string, r *DashboardRuleResults) {
 
 	// TODO: Adding the prometheus_datasource here is hacky. This check function also assumes that all template vars which it will
 	// ever check are only prometheus queries, which may not always be the case.
-	src, err := t.GetDataSource()
-	if err != nil {
-		r.AddError(d, fmt.Sprintf("%s template has invalid datasource %v", name, err))
+	datasourceUid := ""
+	if t.Datasource != nil && t.Datasource.Uid != nil {
+		datasourceUid = *t.Datasource.Uid
 	}
 
-	srcUid := src.UID
-	if srcUid != "$datasource" && srcUid != "${datasource}" && srcUid != "$prometheus_datasource" && srcUid != "${prometheus_datasource}" {
-		r.AddError(d, fmt.Sprintf("%s template should use datasource '$datasource', is currently '%s'", name, srcUid))
+	if datasourceUid != "$datasource" && datasourceUid != "${datasource}" && datasourceUid != "$prometheus_datasource" && datasourceUid != "${prometheus_datasource}" {
+		r.AddError(d, fmt.Sprintf("%s template should use datasource '$datasource', is currently '%s'", name, datasourceUid))
 	}
 
 	if t.Type != targetTypeQuery {
@@ -51,24 +51,24 @@ func checkTemplate(d Dashboard, name string, r *DashboardRuleResults) {
 	titleCaser := cases.Title(language.English)
 	labelTitle := titleCaser.String(name)
 
-	if t.Label != labelTitle {
-		r.AddWarning(d, fmt.Sprintf("%s template should be a labeled '%s', is currently '%s'", name, labelTitle, t.Label))
+	label := ""
+	if t.Label != nil {
+		label = *t.Label
 	}
 
-	if !t.Multi {
+	if label != labelTitle {
+		r.AddWarning(d, fmt.Sprintf("%s template should be a labeled '%s', is currently '%s'", name, labelTitle, label))
+	}
+
+	if t.Multi == nil || !*t.Multi {
 		r.AddError(d, fmt.Sprintf("%s template should be a multi select", name))
 	}
 
-	if t.AllValue != ".+" {
-		r.AddError(d, fmt.Sprintf("%s template allValue should be '.+', is currently '%s'", name, t.AllValue))
-	}
-}
-
-func getTemplate(d Dashboard, name string) *Template {
-	for _, template := range d.Templating.List {
-		if template.Name == name {
-			return &template
+	if t.AllValue == nil || *t.AllValue != ".+" {
+		allValue := ""
+		if t.AllValue != nil {
+			allValue = *t.AllValue
 		}
+		r.AddError(d, fmt.Sprintf("%s template allValue should be '.+', is currently '%s'", name, allValue))
 	}
-	return nil
 }
