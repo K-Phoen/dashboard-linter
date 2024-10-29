@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -12,10 +13,10 @@ func NewTemplateDatasourceRule() *DashboardRuleFunc {
 	return &DashboardRuleFunc{
 		name:        "template-datasource-rule",
 		description: "Checks that the dashboard has a templated datasource.",
-		fn: func(d Dashboard) DashboardRuleResults {
+		fn: func(d dashboard.Dashboard) DashboardRuleResults {
 			r := DashboardRuleResults{}
 
-			templatedDs := d.GetTemplateByType("datasource")
+			templatedDs := getTemplateByType(d, "datasource")
 			if len(templatedDs) == 0 {
 				r.AddError(d, "does not have a templated data source")
 			}
@@ -26,14 +27,24 @@ func NewTemplateDatasourceRule() *DashboardRuleFunc {
 			titleCaser := cases.Title(language.English)
 
 			for _, templDs := range templatedDs {
-				querySpecificUID := fmt.Sprintf("%s_datasource", strings.ToLower(templDs.Query))
-				querySpecificName := fmt.Sprintf("%s data source", titleCaser.String(templDs.Query))
+				query := ""
+				if templDs.Query != nil {
+					query = *templDs.Query.String
+				}
+
+				label := ""
+				if templDs.Label != nil {
+					label = *templDs.Label
+				}
+
+				querySpecificUID := fmt.Sprintf("%s_datasource", strings.ToLower(query))
+				querySpecificName := fmt.Sprintf("%s data source", titleCaser.String(query))
 
 				allowedDsUIDs := make(map[string]struct{})
 				allowedDsNames := make(map[string]struct{})
 
 				uidError := fmt.Sprintf("templated data source variable named '%s', should be named '%s'", templDs.Name, querySpecificUID)
-				nameError := fmt.Sprintf("templated data source variable labeled '%s', should be labeled '%s'", templDs.Label, querySpecificName)
+				nameError := fmt.Sprintf("templated data source variable labeled '%s', should be labeled '%s'", label, querySpecificName)
 				if len(templatedDs) == 1 {
 					allowedDsUIDs["datasource"] = struct{}{}
 					allowedDsNames["Data source"] = struct{}{}
@@ -51,7 +62,7 @@ func NewTemplateDatasourceRule() *DashboardRuleFunc {
 					r.AddError(d, uidError)
 				}
 
-				_, ok = allowedDsNames[templDs.Label]
+				_, ok = allowedDsNames[label]
 				if !ok {
 					r.AddWarning(d, nameError)
 				}
@@ -60,14 +71,4 @@ func NewTemplateDatasourceRule() *DashboardRuleFunc {
 			return r
 		},
 	}
-}
-
-func getTemplateDatasource(d Dashboard) *Template {
-	for _, template := range d.Templating.List {
-		if template.Type != "datasource" {
-			continue
-		}
-		return &template
-	}
-	return nil
 }

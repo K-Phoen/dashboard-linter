@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path"
 	"strings"
 
+	cogplugins "github.com/grafana/grafana-foundation-sdk/go/cog/plugins"
+	cogdashboard "github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/zeitlinger/conflate"
@@ -52,6 +55,7 @@ var lintCmd = &cobra.Command{
 			}
 		}
 
+		cogplugins.RegisterDefaultPlugins()
 		dashboard, err := lint.NewDashboard(buf)
 		if err != nil {
 			return fmt.Errorf("failed to parse dashboard: %v", err)
@@ -70,7 +74,7 @@ var lintCmd = &cobra.Command{
 		config.Autofix = lintAutofixFlag
 
 		rules := lint.NewRuleSet()
-		results, err := rules.Lint([]lint.Dashboard{dashboard})
+		results, err := rules.Lint([]cogdashboard.Dashboard{dashboard})
 		if err != nil {
 			return fmt.Errorf("failed to lint dashboard: %v", err)
 		}
@@ -95,8 +99,8 @@ var lintCmd = &cobra.Command{
 	},
 }
 
-func write(dashboard lint.Dashboard, filename string, old []byte) error {
-	newBytes, err := dashboard.Marshal()
+func write(dashboard cogdashboard.Dashboard, filename string, old []byte) error {
+	newBytes, err := json.Marshal(dashboard)
 	if err != nil {
 		return err
 	}
@@ -109,9 +113,9 @@ func write(dashboard lint.Dashboard, filename string, old []byte) error {
 	if err != nil {
 		return err
 	}
-	json := strings.ReplaceAll(string(b), "\"options\": null,", "\"options\": [],")
+	jsonPayload := strings.ReplaceAll(string(b), "\"options\": null,", "\"options\": [],")
 
-	return os.WriteFile(filename, []byte(json), 0600)
+	return os.WriteFile(filename, []byte(jsonPayload), 0600)
 }
 
 var rulesCmd = &cobra.Command{

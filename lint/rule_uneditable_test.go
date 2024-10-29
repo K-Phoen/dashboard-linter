@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,15 +14,15 @@ func TestNewUneditableRule(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		result    Result
-		dashboard Dashboard
-		fixed     *Dashboard
+		dashboard dashboard.Dashboard
+		fixed     *dashboard.Dashboard
 	}{
 		{
 			name:   "OK",
 			result: ResultSuccess,
-			dashboard: Dashboard{
-				Title:    "test",
-				Editable: false,
+			dashboard: dashboard.Dashboard{
+				Title:    toPtr("test"),
+				Editable: toPtr(false),
 			},
 		},
 		{
@@ -30,9 +31,20 @@ func TestNewUneditableRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'test' is editable, it should be set to 'editable: false'`,
 			},
-			dashboard: Dashboard{
-				Title:    "test",
-				Editable: true,
+			dashboard: dashboard.Dashboard{
+				Title:    toPtr("test"),
+				Editable: toPtr(true),
+			},
+		},
+		{
+			name: "error",
+			result: Result{
+				Severity: Error,
+				Message:  `Dashboard 'test' is editable, it should be set to 'editable: false'`,
+			},
+			dashboard: dashboard.Dashboard{
+				Title:    toPtr("test"),
+				Editable: nil,
 			},
 		},
 		{
@@ -41,13 +53,13 @@ func TestNewUneditableRule(t *testing.T) {
 				Severity: Fixed,
 				Message:  `Dashboard 'test' is editable, it should be set to 'editable: false'`,
 			},
-			dashboard: Dashboard{
-				Title:    "test",
-				Editable: true,
+			dashboard: dashboard.Dashboard{
+				Title:    toPtr("test"),
+				Editable: toPtr(true),
 			},
-			fixed: &Dashboard{
-				Title:    "test",
-				Editable: false,
+			fixed: &dashboard.Dashboard{
+				Title:    toPtr("test"),
+				Editable: toPtr(false),
 			},
 		},
 	} {

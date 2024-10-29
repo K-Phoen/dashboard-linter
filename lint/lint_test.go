@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"testing"
 
+	cogdashboard "github.com/grafana/grafana-foundation-sdk/go/dashboard"
+	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,15 +66,17 @@ func newResultContext(rule string, dashboard string, panel string, targetIdx str
 		ret.Rule = &TestRule{name: rule}
 	}
 	if dashboard != "" {
-		ret.Dashboard = &Dashboard{Title: dashboard}
+		ret.Dashboard = &cogdashboard.Dashboard{Title: &dashboard}
 	}
 	if panel != "" {
-		ret.Panel = &Panel{Title: panel}
+		ret.Panel = &cogdashboard.PanelOrRowPanel{
+			Panel: &cogdashboard.Panel{Title: &panel},
+		}
 	}
 	if targetIdx != "" {
 		idx, err := strconv.Atoi(targetIdx)
 		if err == nil {
-			ret.Target = &Target{Idx: idx}
+			ret.Target = &Target{Idx: idx, Original: prometheus.Dataquery{}}
 		}
 	}
 	return ret

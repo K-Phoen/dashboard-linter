@@ -5,10 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+	"github.com/grafana/grafana-foundation-sdk/go/loki"
 	"github.com/grafana/loki/v3/pkg/logql/syntax"
 )
 
-func parseLogQL(expr string, variables []Template) (syntax.Expr, error) {
+func parseLogQL(expr string, variables []dashboard.VariableModel) (syntax.Expr, error) {
 	expr, err := expandLogQLVariables(expr, variables)
 	if err != nil {
 		return nil, fmt.Errorf("could not expand variables: %w", err)
@@ -25,19 +27,29 @@ func NewTargetLogQLAutoRule() *TargetRuleFunc {
 	return &TargetRuleFunc{
 		name:        "target-logql-auto-rule",
 		description: "Checks that each Loki target uses $__auto for range vectors when appropriate.",
-		fn: func(d Dashboard, p Panel, t Target) TargetRuleResults {
+		fn: func(d dashboard.Dashboard, p dashboard.PanelOrRowPanel, t Target) TargetRuleResults {
 			r := TargetRuleResults{}
 
+			// The panel is a row
+			if p.RowPanel != nil {
+				return r
+			}
+
+			lokiQuery, ok := t.Original.(loki.Dataquery)
+			if !ok {
+				return r
+			}
+
 			// skip hidden targets
-			if t.Hide {
+			if lokiQuery.Hide != nil && *lokiQuery.Hide {
 				return r
 			}
 
 			// check if the datasource is Loki
 			isLoki := false
-			if templateDS := getTemplateDatasource(d); templateDS != nil && templateDS.Query == Loki {
+			if templateDS := getTemplateDatasource(d); templateDS != nil && templateDS.Query.String != nil && *templateDS.Query.String == Loki {
 				isLoki = true
-			} else if ds, err := t.GetDataSource(); err == nil && ds.Type == Loki {
+			} else if lokiQuery.Datasource != nil && lokiQuery.Datasource.Type != nil && *lokiQuery.Datasource.Type == Loki {
 				isLoki = true
 			}
 
@@ -47,17 +59,17 @@ func NewTargetLogQLAutoRule() *TargetRuleFunc {
 			}
 
 			// skip if the panel does not have queries
-			if !panelHasQueries(p) {
+			if !panelHasQueries(p.Panel) {
 				return r
 			}
 
-			parsedExpr, err := parseLogQL(t.Expr, d.Templating.List)
+			parsedExpr, err := parseLogQL(lokiQuery.Expr, d.Templating.List)
 			if err != nil {
 				r.AddError(d, p, t, fmt.Sprintf("Invalid LogQL query: %v", err))
 				return r
 			}
 
-			originalExpr := t.Expr
+			originalExpr := lokiQuery.Expr
 
 			hasFixedDuration := false
 

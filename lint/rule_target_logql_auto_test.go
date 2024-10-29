@@ -2,6 +2,11 @@ package lint
 
 import (
 	"testing"
+
+	"github.com/grafana/grafana-foundation-sdk/go/cog/variants"
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+	"github.com/grafana/grafana-foundation-sdk/go/loki"
+	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 )
 
 // TestTargetLogQLAutoRule tests the NewTargetLogQLAutoRule function to ensure
@@ -11,16 +16,16 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 
 	for _, tc := range []struct {
 		result Result
-		panel  Panel
+		panel  dashboard.Panel
 	}{
 		// Test case: Non-Loki panel should pass without errors.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title:      "panel",
-				Datasource: "foo",
-				Targets: []Target{
-					{
+			panel: dashboard.Panel{
+				Title:      toPtr("panel"),
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo"), Type: toPtr("prometheus")},
+				Targets: []variants.Dataquery{
+					prometheus.Dataquery{
 						Expr: `sum(rate({job=~"$job",instance=~"$instance"}[5m]))`,
 					},
 				},
@@ -29,11 +34,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 		// Test case: Valid LogQL query using $__auto.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum(rate({job=~"$job",instance=~"$instance"} [$__auto]))`,
 					},
 				},
@@ -42,11 +47,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 		// Test case: Valid LogQL query using $__auto in a complex expression.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum(rate({job=~"$job",instance=~"$instance"} [$__auto]))/sum(rate({job=~"$job",instance=~"$instance"} [$__auto]))`,
 					},
 				},
@@ -58,11 +63,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' LogQL query uses fixed duration: should use $__auto`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum(rate({job=~"$job",instance=~"$instance"}[5m]))`,
 					},
 				},
@@ -74,11 +79,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' LogQL query uses fixed duration: should use $__auto`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "timeseries",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum(rate({job=~"$job",instance=~"$instance"}[5m]))`,
 					},
 				},
@@ -87,11 +92,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 		// Test case: Valid LogQL query with count_over_time and $__auto.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `count_over_time({job="mysql"} [$__auto])`,
 					},
 				},
@@ -103,11 +108,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' LogQL query uses fixed duration: should use $__auto`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `count_over_time({job="mysql"}[5m])`,
 					},
 				},
@@ -116,11 +121,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 		// Test case: Valid LogQL query with bytes_rate and $__auto.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `bytes_rate({job="mysql"} [$__auto])`,
 					},
 				},
@@ -132,11 +137,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' LogQL query uses fixed duration: should use $__auto`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `bytes_rate({job="mysql"}[5m])`,
 					},
 				},
@@ -145,11 +150,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 		// Test case: Valid LogQL query with bytes_over_time and $__auto.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `bytes_over_time({job="mysql"} [$__auto])`,
 					},
 				},
@@ -161,11 +166,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' LogQL query uses fixed duration: should use $__auto`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `bytes_over_time({job="mysql"}[5m])`,
 					},
 				},
@@ -174,11 +179,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 		// Test case: Valid LogQL query with sum_over_time and $__auto.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum_over_time({job="mysql"} |= "duration" | unwrap duration [$__auto])`,
 					},
 				},
@@ -190,11 +195,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' LogQL query uses fixed duration: should use $__auto`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `sum_over_time({job="mysql"} |= "duration" | unwrap duration[5m])`,
 					},
 				},
@@ -203,11 +208,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 		// Test case: Valid LogQL query with avg_over_time and $__auto.
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `avg_over_time({job="mysql"} |= "duration" | unwrap duration [$__auto])`,
 					},
 				},
@@ -219,11 +224,11 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 				Severity: Error,
 				Message:  `Dashboard 'dashboard', panel 'panel', target idx '0' LogQL query uses fixed duration: should use $__auto`,
 			},
-			panel: Panel{
-				Title: "panel",
+			panel: dashboard.Panel{
+				Title: toPtr("panel"),
 				Type:  "singlestat",
-				Targets: []Target{
-					{
+				Targets: []variants.Dataquery{
+					loki.Dataquery{
 						Expr: `avg_over_time({job="mysql"} |= "duration" | unwrap duration[5m])`,
 					},
 				},
@@ -231,20 +236,18 @@ func TestTargetLogQLAutoRule(t *testing.T) {
 		},
 		// Add similar tests for other unwrapped range aggregations...
 	} {
-		dashboard := Dashboard{
-			Title: "dashboard",
-			Templating: struct {
-				List []Template `json:"list"`
-			}{
-				List: []Template{
+		dash := dashboard.Dashboard{
+			Title: toPtr("dashboard"),
+			Templating: dashboard.DashboardDashboardTemplating{
+				List: []dashboard.VariableModel{
 					{
 						Type:  "datasource",
-						Query: "loki",
+						Query: &dashboard.StringOrMap{String: toPtr("loki")},
 					},
 				},
 			},
-			Panels: []Panel{tc.panel},
+			Panels: []dashboard.PanelOrRowPanel{{Panel: &tc.panel}},
 		}
-		testRule(t, linter, dashboard, tc.result)
+		testRule(t, linter, dash, tc.result)
 	}
 }

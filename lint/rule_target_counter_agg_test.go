@@ -2,6 +2,10 @@ package lint
 
 import (
 	"testing"
+
+	cogvariants "github.com/grafana/grafana-foundation-sdk/go/cog/variants"
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 )
 
 func TestTargetCounterAggRule(t *testing.T) {
@@ -9,7 +13,7 @@ func TestTargetCounterAggRule(t *testing.T) {
 
 	for _, tc := range []struct {
 		result Result
-		panel  Panel
+		panel  dashboard.Panel
 	}{
 		// Non aggregated counter fails
 		{
@@ -17,11 +21,11 @@ func TestTargetCounterAggRule(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'dashboard', panel 'panel', target idx '0' counter metric 'something_total' is not aggregated with rate, irate, or increase",
 			},
-			panel: Panel{
-				Title:      "panel",
-				Datasource: "foo",
-				Targets: []Target{
-					{
+			panel: dashboard.Panel{
+				Title:      toPtr("panel"),
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Targets: []cogvariants.Dataquery{
+					prometheus.Dataquery{
 						Expr: `something_total`,
 					},
 				},
@@ -33,11 +37,11 @@ func TestTargetCounterAggRule(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'dashboard', panel 'panel', target idx '0' counter metric 'something_total' is not aggregated with rate, irate, or increase",
 			},
-			panel: Panel{
-				Title:      "panel",
-				Datasource: "foo",
-				Targets: []Target{
-					{
+			panel: dashboard.Panel{
+				Title:      toPtr("panel"),
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Targets: []cogvariants.Dataquery{
+					prometheus.Dataquery{
 						Expr: `something_total[$__rate_interval]`,
 					},
 				},
@@ -46,11 +50,11 @@ func TestTargetCounterAggRule(t *testing.T) {
 		// Single aggregated counter is good
 		{
 			result: ResultSuccess,
-			panel: Panel{
-				Title:      "panel",
-				Datasource: "foo",
-				Targets: []Target{
-					{
+			panel: dashboard.Panel{
+				Title:      toPtr("panel"),
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Targets: []cogvariants.Dataquery{
+					prometheus.Dataquery{
 						Expr: `increase(something_total[$__rate_interval])`,
 					},
 				},
@@ -62,11 +66,11 @@ func TestTargetCounterAggRule(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'dashboard', panel 'panel', target idx '0' counter metric 'something_total' is not aggregated with rate, irate, or increase",
 			},
-			panel: Panel{
-				Title:      "panel",
-				Datasource: "foo",
-				Targets: []Target{
-					{
+			panel: dashboard.Panel{
+				Title:      toPtr("panel"),
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Targets: []cogvariants.Dataquery{
+					prometheus.Dataquery{
 						Expr: `something_total / rate(somethingelse_total[$__rate_interval])`,
 					},
 				},
@@ -78,25 +82,20 @@ func TestTargetCounterAggRule(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'dashboard', panel 'panel', target idx '0' counter metric 'somethingelse_total' is not aggregated with rate, irate, or increase",
 			},
-			panel: Panel{
-				Title:      "panel",
-				Datasource: "foo",
-				Targets: []Target{
-					{
+			panel: dashboard.Panel{
+				Title:      toPtr("panel"),
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Targets: []cogvariants.Dataquery{
+					prometheus.Dataquery{
 						Expr: `rate(something_total[$__rate_interval]) / somethingelse_total`,
 					},
 				},
 			},
 		},
 	} {
-		dashboard := Dashboard{
-			Title: "dashboard",
-			Templating: struct {
-				List []Template "json:\"list\""
-			}{List: []Template{}},
-			Panels: []Panel{tc.panel},
+		panels := []dashboard.PanelOrRowPanel{
+			{Panel: &tc.panel},
 		}
-
-		testRule(t, linter, dashboard, tc.result)
+		testRule(t, linter, dashboard.Dashboard{Title: toPtr("dashboard"), Panels: panels}, tc.result)
 	}
 }

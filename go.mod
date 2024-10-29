@@ -5,6 +5,7 @@ go 1.21.8
 toolchain go1.23.1
 
 require (
+	github.com/grafana/grafana-foundation-sdk/go v0.0.0-20241009194022-923b32e3e69b
 	github.com/grafana/loki/v3 v3.2.0
 	github.com/prometheus/prometheus v0.54.1
 	github.com/spf13/cobra v1.8.1

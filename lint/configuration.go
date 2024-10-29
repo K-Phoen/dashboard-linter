@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	yaml "gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v3"
 )
 
 // ConfigurationFile contains a map for rule exclusions, and warnings, where the key is the
@@ -42,11 +42,15 @@ func (cre *ConfigurationRuleEntries) AddEntry(e ConfigurationEntry) {
 
 func (ce *ConfigurationEntry) IsMatch(r ResultContext) bool {
 	ret := true
-	if ce.Dashboard != "" && r.Dashboard != nil && ce.Dashboard != r.Dashboard.Title {
+	if ce.Dashboard != "" && r.Dashboard != nil && r.Dashboard.Title != nil && ce.Dashboard != *r.Dashboard.Title {
 		ret = false
 	}
 
-	if ce.Panel != "" && r.Panel != nil && ce.Panel != r.Panel.Title {
+	if ce.Panel != "" && r.Panel != nil && r.Panel.RowPanel != nil && r.Panel.RowPanel.Title != nil && ce.Panel != *r.Panel.RowPanel.Title {
+		ret = false
+	}
+
+	if ce.Panel != "" && r.Panel != nil && r.Panel.Panel != nil && r.Panel.Panel.Title != nil && ce.Panel != *r.Panel.Panel.Title {
 		ret = false
 	}
 

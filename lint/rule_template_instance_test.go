@@ -1,19 +1,23 @@
 package lint
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+)
 
 func TestInstanceTemplate(t *testing.T) {
 	linter := NewTemplateInstanceRule()
 
 	for _, tc := range []struct {
 		result    Result
-		dashboard Dashboard
+		dashboard dashboard.Dashboard
 	}{
 		// Non-promtheus dashboards shouldn't fail.
 		{
 			result: ResultSuccess,
-			dashboard: Dashboard{
-				Title: "test",
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
 			},
 		},
 		// Missing instance templates.
@@ -22,23 +26,21 @@ func TestInstanceTemplate(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'test' is missing the instance template",
 			},
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Name:       "job",
-							Datasource: "$datasource",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("$datasource")},
 							Type:       "query",
-							Label:      "Job",
-							Multi:      true,
-							AllValue:   ".+",
+							Label:      toPtr("Job"),
+							Multi:      toPtr(true),
+							AllValue:   toPtr(".+"),
 						},
 					},
 				},
@@ -47,31 +49,29 @@ func TestInstanceTemplate(t *testing.T) {
 		// What success looks like.
 		{
 			result: ResultSuccess,
-			dashboard: Dashboard{
-				Title: "test",
-				Templating: struct {
-					List []Template `json:"list"`
-				}{
-					List: []Template{
+			dashboard: dashboard.Dashboard{
+				Title: toPtr("test"),
+				Templating: dashboard.DashboardDashboardTemplating{
+					List: []dashboard.VariableModel{
 						{
 							Type:  "datasource",
-							Query: "prometheus",
+							Query: &dashboard.StringOrMap{String: toPtr("prometheus")},
 						},
 						{
 							Name:       "job",
-							Datasource: "$datasource",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("$datasource")},
 							Type:       "query",
-							Label:      "Job",
-							Multi:      true,
-							AllValue:   ".+",
+							Label:      toPtr("Job"),
+							Multi:      toPtr(true),
+							AllValue:   toPtr(".+"),
 						},
 						{
 							Name:       "instance",
-							Datasource: "${datasource}",
+							Datasource: &dashboard.DataSourceRef{Uid: toPtr("${datasource}")},
 							Type:       "query",
-							Label:      "Instance",
-							Multi:      true,
-							AllValue:   ".+",
+							Label:      toPtr("Instance"),
+							Multi:      toPtr(true),
+							AllValue:   toPtr(".+"),
 						},
 					},
 				},

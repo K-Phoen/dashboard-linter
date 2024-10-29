@@ -2,6 +2,8 @@ package lint
 
 import (
 	"testing"
+
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 )
 
 func TestPanelUnits(t *testing.T) {
@@ -10,7 +12,7 @@ func TestPanelUnits(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		result Result
-		panel  Panel
+		panel  dashboard.Panel
 	}{
 		{
 			name: "invalid unit",
@@ -18,13 +20,13 @@ func TestPanelUnits(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'test', panel 'bar' has no or invalid units defined: 'MyInvalidUnit'",
 			},
-			panel: Panel{
+			panel: dashboard.Panel{
 				Type:       "singlestat",
-				Datasource: "foo",
-				Title:      "bar",
-				FieldConfig: &FieldConfig{
-					Defaults: Defaults{
-						Unit: "MyInvalidUnit",
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Title:      toPtr("bar"),
+				FieldConfig: &dashboard.FieldConfigSource{
+					Defaults: dashboard.FieldConfig{
+						Unit: toPtr("MyInvalidUnit"),
 					},
 				},
 			},
@@ -35,10 +37,10 @@ func TestPanelUnits(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'test', panel 'bar' has no or invalid units defined: ''",
 			},
-			panel: Panel{
+			panel: dashboard.Panel{
 				Type:       "singlestat",
-				Datasource: "foo",
-				Title:      "bar",
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Title:      toPtr("bar"),
 			},
 		},
 		{
@@ -47,23 +49,23 @@ func TestPanelUnits(t *testing.T) {
 				Severity: Error,
 				Message:  "Dashboard 'test', panel 'bar' has no or invalid units defined: ''",
 			},
-			panel: Panel{
+			panel: dashboard.Panel{
 				Type:        "singlestat",
-				Datasource:  "foo",
-				Title:       "bar",
-				FieldConfig: &FieldConfig{},
+				Datasource:  &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Title:       toPtr("bar"),
+				FieldConfig: &dashboard.FieldConfigSource{},
 			},
 		},
 		{
 			name:   "valid",
 			result: ResultSuccess,
-			panel: Panel{
+			panel: dashboard.Panel{
 				Type:       "singlestat",
-				Datasource: "foo",
-				Title:      "bar",
-				FieldConfig: &FieldConfig{
-					Defaults: Defaults{
-						Unit: "short",
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Title:      toPtr("bar"),
+				FieldConfig: &dashboard.FieldConfigSource{
+					Defaults: dashboard.FieldConfig{
+						Unit: toPtr("short"),
 					},
 				},
 			},
@@ -71,20 +73,23 @@ func TestPanelUnits(t *testing.T) {
 		{
 			name:   "none - scalar",
 			result: ResultSuccess,
-			panel: Panel{
+			panel: dashboard.Panel{
 				Type:       "singlestat",
-				Datasource: "foo",
-				Title:      "bar",
-				FieldConfig: &FieldConfig{
-					Defaults: Defaults{
-						Unit: "none",
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Title:      toPtr("bar"),
+				FieldConfig: &dashboard.FieldConfigSource{
+					Defaults: dashboard.FieldConfig{
+						Unit: toPtr("none"),
 					},
 				},
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			testRule(t, linter, Dashboard{Title: "test", Panels: []Panel{tc.panel}}, tc.result)
+			panels := []dashboard.PanelOrRowPanel{
+				{Panel: &tc.panel},
+			}
+			testRule(t, linter, dashboard.Dashboard{Title: toPtr("test"), Panels: panels}, tc.result)
 		})
 	}
 }

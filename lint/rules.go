@@ -1,23 +1,27 @@
 package lint
 
+import (
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+)
+
 type Rule interface {
 	Description() string
 	Name() string
-	Lint(Dashboard, *ResultSet)
+	Lint(dashboard.Dashboard, *ResultSet)
 }
 
 type DashboardRuleFunc struct {
 	name, description string
-	fn                func(Dashboard) DashboardRuleResults
+	fn                func(dashboard.Dashboard) DashboardRuleResults
 }
 
-func NewDashboardRuleFunc(name, description string, fn func(Dashboard) DashboardRuleResults) Rule {
+func NewDashboardRuleFunc(name, description string, fn func(dashboard.Dashboard) DashboardRuleResults) Rule {
 	return &DashboardRuleFunc{name, description, fn}
 }
 
 func (f DashboardRuleFunc) Name() string        { return f.name }
 func (f DashboardRuleFunc) Description() string { return f.description }
-func (f DashboardRuleFunc) Lint(d Dashboard, s *ResultSet) {
+func (f DashboardRuleFunc) Lint(d dashboard.Dashboard, s *ResultSet) {
 	dashboardResults := f.fn(d).Results
 	if len(dashboardResults) == 0 {
 		dashboardResults = []DashboardResult{{
@@ -27,9 +31,9 @@ func (f DashboardRuleFunc) Lint(d Dashboard, s *ResultSet) {
 	rr := make([]FixableResult, len(dashboardResults))
 	for i, r := range dashboardResults {
 		r := r // capture loop variable
-		var fix func(*Dashboard)
+		var fix func(*dashboard.Dashboard)
 		if r.Fix != nil {
-			fix = func(dashboard *Dashboard) {
+			fix = func(dashboard *dashboard.Dashboard) {
 				r.Fix(dashboard)
 			}
 		}
@@ -51,17 +55,17 @@ func (f DashboardRuleFunc) Lint(d Dashboard, s *ResultSet) {
 
 type PanelRuleFunc struct {
 	name, description string
-	fn                func(Dashboard, Panel) PanelRuleResults
+	fn                func(dashboard.Dashboard, dashboard.PanelOrRowPanel) PanelRuleResults
 }
 
-func NewPanelRuleFunc(name, description string, fn func(Dashboard, Panel) PanelRuleResults) Rule {
+func NewPanelRuleFunc(name, description string, fn func(dashboard.Dashboard, dashboard.PanelOrRowPanel) PanelRuleResults) Rule {
 	return &PanelRuleFunc{name, description, fn}
 }
 
 func (f PanelRuleFunc) Name() string        { return f.name }
 func (f PanelRuleFunc) Description() string { return f.description }
-func (f PanelRuleFunc) Lint(d Dashboard, s *ResultSet) {
-	for pi, p := range d.GetPanels() {
+func (f PanelRuleFunc) Lint(d dashboard.Dashboard, s *ResultSet) {
+	for pi, p := range d.Panels {
 		p := p   // capture loop variable
 		pi := pi // capture loop variable
 		var rr []FixableResult
@@ -74,7 +78,7 @@ func (f PanelRuleFunc) Lint(d Dashboard, s *ResultSet) {
 		}
 
 		for _, r := range panelResults {
-			var fix func(*Dashboard)
+			var fix func(*dashboard.Dashboard)
 			if r.Fix != nil {
 				fix = fixPanel(pi, r)
 			}
@@ -96,9 +100,9 @@ func (f PanelRuleFunc) Lint(d Dashboard, s *ResultSet) {
 	}
 }
 
-func fixPanel(pi int, r PanelResult) func(dashboard *Dashboard) {
-	return func(dashboard *Dashboard) {
-		p := dashboard.GetPanels()[pi]
+func fixPanel(pi int, r PanelResult) func(dashboard *dashboard.Dashboard) {
+	return func(dashboard *dashboard.Dashboard) {
+		p := dashboard.Panels[pi]
 		r.Fix(*dashboard, &p)
 		dashboard.Panels[pi] = p
 	}
@@ -106,25 +110,34 @@ func fixPanel(pi int, r PanelResult) func(dashboard *Dashboard) {
 
 type TargetRuleFunc struct {
 	name, description string
-	fn                func(Dashboard, Panel, Target) TargetRuleResults
+	fn                func(dashboard.Dashboard, dashboard.PanelOrRowPanel, Target) TargetRuleResults
 }
 
-func NewTargetRuleFunc(name, description string, fn func(Dashboard, Panel, Target) TargetRuleResults) Rule {
+func NewTargetRuleFunc(name, description string, fn func(dashboard.Dashboard, dashboard.PanelOrRowPanel, Target) TargetRuleResults) Rule {
 	return &TargetRuleFunc{name, description, fn}
 }
 
 func (f TargetRuleFunc) Name() string        { return f.name }
 func (f TargetRuleFunc) Description() string { return f.description }
-func (f TargetRuleFunc) Lint(d Dashboard, s *ResultSet) {
-	for pi, p := range d.GetPanels() {
+func (f TargetRuleFunc) Lint(d dashboard.Dashboard, s *ResultSet) {
+	for pi, p := range d.Panels {
 		p := p   // capture loop variable
 		pi := pi // capture loop variable
-		for ti, t := range p.Targets {
+
+		if p.RowPanel != nil {
+			continue
+		}
+
+		panel := p.Panel
+
+		for ti, t := range panel.Targets {
 			t := t   // capture loop variable
 			ti := ti // capture loop variable
 			var rr []FixableResult
 
-			targetResults := f.fn(d, p, t).Results
+			indexedTarget := Target{Idx: ti, Original: t}
+
+			targetResults := f.fn(d, p, indexedTarget).Results
 			if len(targetResults) == 0 {
 				targetResults = []TargetResult{{
 					Result: ResultSuccess,
@@ -132,7 +145,7 @@ func (f TargetRuleFunc) Lint(d Dashboard, s *ResultSet) {
 			}
 
 			for _, r := range targetResults {
-				var fix func(*Dashboard)
+				var fix func(*dashboard.Dashboard)
 				if r.Fix != nil {
 					fix = fixTarget(pi, ti, r)
 				}
@@ -149,18 +162,18 @@ func (f TargetRuleFunc) Lint(d Dashboard, s *ResultSet) {
 				Rule:      f,
 				Dashboard: &d,
 				Panel:     &p,
-				Target:    &t,
+				Target:    &indexedTarget,
 			})
 		}
 	}
 }
 
-func fixTarget(pi int, ti int, r TargetResult) func(dashboard *Dashboard) {
-	return func(dashboard *Dashboard) {
-		p := dashboard.GetPanels()[pi]
-		t := p.Targets[ti]
-		r.Fix(*dashboard, p, &t)
-		p.Targets[ti] = t
+func fixTarget(pi int, ti int, r TargetResult) func(dashboard *dashboard.Dashboard) {
+	return func(dashboard *dashboard.Dashboard) {
+		p := dashboard.Panels[pi]
+		t := p.Panel.Targets[ti]
+		r.Fix(*dashboard, p, Target{Idx: ti, Original: t})
+		p.Panel.Targets[ti] = t
 		dashboard.Panels[pi] = p
 	}
 }
@@ -202,7 +215,7 @@ func (s *RuleSet) Add(r Rule) {
 	s.rules = append(s.rules, r)
 }
 
-func (s *RuleSet) Lint(dashboards []Dashboard) (*ResultSet, error) {
+func (s *RuleSet) Lint(dashboards []dashboard.Dashboard) (*ResultSet, error) {
 	resSet := &ResultSet{}
 	for _, d := range dashboards {
 		for _, r := range s.rules {

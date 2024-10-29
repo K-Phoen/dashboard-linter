@@ -2,6 +2,10 @@ package lint
 
 import (
 	"testing"
+
+	cogvariants "github.com/grafana/grafana-foundation-sdk/go/cog/variants"
+	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
+	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 )
 
 func TestPanelNoTargets(t *testing.T) {
@@ -9,33 +13,36 @@ func TestPanelNoTargets(t *testing.T) {
 
 	for _, tc := range []struct {
 		result Result
-		panel  Panel
+		panel  dashboard.Panel
 	}{
 		{
 			result: Result{
 				Severity: Error,
 				Message:  "Dashboard 'test', panel 'bar' has no targets",
 			},
-			panel: Panel{
+			panel: dashboard.Panel{
 				Type:       "singlestat",
-				Datasource: "foo",
-				Title:      "bar",
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Title:      toPtr("bar"),
 			},
 		},
 		{
 			result: ResultSuccess,
-			panel: Panel{
+			panel: dashboard.Panel{
 				Type:       "singlestat",
-				Datasource: "foo",
-				Title:      "bar",
-				Targets: []Target{
-					{
+				Datasource: &dashboard.DataSourceRef{Uid: toPtr("foo")},
+				Title:      toPtr("bar"),
+				Targets: []cogvariants.Dataquery{
+					prometheus.Dataquery{
 						Expr: `sum(rate(foo[5m]))`,
 					},
 				},
 			},
 		},
 	} {
-		testRule(t, linter, Dashboard{Title: "test", Panels: []Panel{tc.panel}}, tc.result)
+		panels := []dashboard.PanelOrRowPanel{
+			{Panel: &tc.panel},
+		}
+		testRule(t, linter, dashboard.Dashboard{Title: toPtr("test"), Panels: panels}, tc.result)
 	}
 }

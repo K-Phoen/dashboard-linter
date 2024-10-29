@@ -83,7 +83,7 @@
       {
         "name": "job",
         "label": "job",
-        "datasource": "$datasource",
+        "datasource": {"uid": "$datasource"},
         "type": "query",
         "query": "query_result(up{})",
         "multi": true,
